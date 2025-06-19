@@ -1,1 +1,627 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clash Royale Elixir Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: white;
+            padding: 10px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: #16213e;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #ffd700;
+            margin-bottom: 30px;
+            font-size: 2em;
+        }
+
+        .elixir-section {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #0f1419;
+            border-radius: 10px;
+            border: 2px solid #8b5cf6;
+        }
+
+        .elixir-display {
+            font-size: 4em;
+            font-weight: bold;
+            color: #8b5cf6;
+            margin: 10px 0;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+
+        .btn-start {
+            background-color: #10b981;
+            color: white;
+        }
+
+        .btn-start:hover {
+            background-color: #059669;
+        }
+
+        .btn-pause {
+            background-color: #f59e0b;
+            color: white;
+        }
+
+        .btn-pause:hover {
+            background-color: #d97706;
+        }
+
+        .btn-undo {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .btn-undo:hover {
+            background-color: #dc2626;
+        }
+
+        .btn-undo:disabled {
+            background-color: #6b7280;
+            cursor: not-allowed;
+        }
+
+        .card-section {
+            background-color: #0f1419;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-section h2 {
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .card-search {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        #cardSearch {
+            flex: 1;
+            min-width: 200px;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #8b5cf6;
+            border-radius: 5px;
+            background-color: #1a1a2e;
+            color: white;
+        }
+
+        #cardSearch:focus {
+            outline: none;
+            border-color: #ffd700;
+        }
+
+        .btn-play {
+            background-color: #8b5cf6;
+            color: white;
+            white-space: nowrap;
+        }
+
+        .btn-play:hover {
+            background-color: #7c3aed;
+        }
+
+        .btn-play:disabled {
+            background-color: #6b7280;
+            cursor: not-allowed;
+        }
+
+        .selected-card {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #16213e;
+            border-radius: 5px;
+            border: 1px solid #8b5cf6;
+        }
+
+        .card-image {
+            width: 60px;
+            height: 60px;
+            border-radius: 5px;
+            background-color: #1a1a2e;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .card-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+        .card-info {
+            flex: 1;
+        }
+
+        .card-name {
+            font-weight: bold;
+            color: #ffd700;
+        }
+
+        .card-cost {
+            color: #8b5cf6;
+            font-size: 14px;
+        }
+
+        .history-section {
+            background-color: #0f1419;
+            border-radius: 10px;
+            padding: 20px;
+        }
+
+        .history-section h2 {
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+
+        .history-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 5px;
+            background-color: #16213e;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .suggestions {
+            position: absolute;
+            background-color: #16213e;
+            border: 2px solid #8b5cf6;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            width: 100%;
+        }
+
+        .suggestion-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #1a1a2e;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .suggestion-item:hover {
+            background-color: #1a1a2e;
+        }
+
+        .suggestion-item img {
+            width: 30px;
+            height: 30px;
+            object-fit: cover;
+            border-radius: 3px;
+        }
+
+        .search-container {
+            position: relative;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5em;
+            }
+            
+            .elixir-display {
+                font-size: 3em;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+            
+            .card-search {
+                flex-direction: column;
+            }
+            
+            #cardSearch {
+                min-width: unset;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ Clash Royale Elixir Tracker</h1>
+        
+        <div class="elixir-section">
+            <div>Gegner Elixir</div>
+            <div class="elixir-display" id="elixirDisplay">5</div>
+            <div id="timerStatus">Timer gestoppt</div>
+        </div>
+
+        <div class="controls">
+            <button class="btn-start" id="startBtn" onclick="startGame()">Start Game</button>
+            <button class="btn-pause" id="pauseBtn" onclick="pauseGame()">Pause</button>
+            <button class="btn-undo" id="undoBtn" onclick="undoLastAction()" disabled>Undo</button>
+        </div>
+
+        <div class="card-section">
+            <h2>Karte spielen</h2>
+            <div class="card-search">
+                <div class="search-container">
+                    <input type="text" id="cardSearch" placeholder="Karte suchen..." autocomplete="off">
+                    <div class="suggestions" id="suggestions" style="display: none;"></div>
+                </div>
+                <button class="btn-play" id="playCardBtn" onclick="playSelectedCard()" disabled>Karte gespielt</button>
+            </div>
+            
+            <div class="selected-card" id="selectedCard" style="display: none;">
+                <div class="card-image" id="selectedCardImage">Kein Bild</div>
+                <div class="card-info">
+                    <div class="card-name" id="selectedCardName"></div>
+                    <div class="card-cost" id="selectedCardCost"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="history-section">
+            <h2>Spielhistorie</h2>
+            <div class="history-list" id="historyList">
+                <div style="color: #6b7280; font-style: italic;">Noch keine Karten gespielt</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Clash Royale Karten Daten
+        const cardsData = [
+            {"name": "Knight", "cost": 3},
+            {"name": "Archers", "cost": 3},
+            {"name": "Goblins", "cost": 2},
+            {"name": "Giant", "cost": 5},
+            {"name": "P.E.K.K.A", "cost": 7},
+            {"name": "Minions", "cost": 3},
+            {"name": "Balloon", "cost": 5},
+            {"name": "Witch", "cost": 5},
+            {"name": "Barbarians", "cost": 5},
+            {"name": "Golem", "cost": 8},
+            {"name": "Skeletons", "cost": 1},
+            {"name": "Valkyrie", "cost": 4},
+            {"name": "Skeleton Army", "cost": 3},
+            {"name": "Bomber", "cost": 2},
+            {"name": "Musketeer", "cost": 4},
+            {"name": "Baby Dragon", "cost": 4},
+            {"name": "Prince", "cost": 5},
+            {"name": "Wizard", "cost": 5},
+            {"name": "Mini P.E.K.K.A", "cost": 4},
+            {"name": "Spear Goblins", "cost": 2},
+            {"name": "Giant Skeleton", "cost": 6},
+            {"name": "Hog Rider", "cost": 4},
+            {"name": "Minion Horde", "cost": 5},
+            {"name": "Ice Wizard", "cost": 3},
+            {"name": "Royal Giant", "cost": 6},
+            {"name": "Guards", "cost": 3},
+            {"name": "Princess", "cost": 3},
+            {"name": "Dark Prince", "cost": 4},
+            {"name": "Three Musketeers", "cost": 9},
+            {"name": "Lava Hound", "cost": 7},
+            {"name": "Ice Spirit", "cost": 1},
+            {"name": "Fire Spirit", "cost": 1},
+            {"name": "Miner", "cost": 3},
+            {"name": "Sparky", "cost": 6},
+            {"name": "Bowler", "cost": 5},
+            {"name": "Lumberjack", "cost": 4},
+            {"name": "Battle Ram", "cost": 4},
+            {"name": "Inferno Dragon", "cost": 4},
+            {"name": "Ice Golem", "cost": 2},
+            {"name": "Mega Minion", "cost": 3},
+            {"name": "Dart Goblin", "cost": 3},
+            {"name": "Goblin Barrel", "cost": 3},
+            {"name": "Tornado", "cost": 3},
+            {"name": "Clone", "cost": 3},
+            {"name": "Skeleton Barrel", "cost": 3},
+            {"name": "Goblin Gang", "cost": 3},
+            {"name": "Executioner", "cost": 5},
+            {"name": "Bandit", "cost": 3},
+            {"name": "Royal Recruits", "cost": 7},
+            {"name": "Night Witch", "cost": 4},
+            {"name": "Bats", "cost": 2},
+            {"name": "Heal Spirit", "cost": 1},
+            {"name": "Giant Snowball", "cost": 2},
+            {"name": "Royal Ghost", "cost": 3},
+            {"name": "Ram Rider", "cost": 5},
+            {"name": "Zappies", "cost": 4},
+            {"name": "Rascals", "cost": 5},
+            {"name": "Cannon Cart", "cost": 5},
+            {"name": "Mega Knight", "cost": 7},
+            {"name": "Skeleton Dragons", "cost": 4},
+            {"name": "Wall Breakers", "cost": 2},
+            {"name": "Elixir Golem", "cost": 3},
+            {"name": "Battle Healer", "cost": 4},
+            {"name": "Firecracker", "cost": 3},
+            {"name": "Mighty Miner", "cost": 4},
+            {"name": "Royal Delivery", "cost": 3},
+            {"name": "Barbarian Barrel", "cost": 2},
+            {"name": "Flying Machine", "cost": 4},
+            {"name": "Goblin Giant", "cost": 6},
+            {"name": "Hunter", "cost": 4},
+            {"name": "Magic Archer", "cost": 4},
+            {"name": "Electro Dragon", "cost": 5},
+            {"name": "Fisherman", "cost": 3},
+            {"name": "Earthquake", "cost": 3},
+            {"name": "Barbarian Hut", "cost": 7},
+            {"name": "Cannon", "cost": 3},
+            {"name": "Goblin Hut", "cost": 5},
+            {"name": "Mortar", "cost": 4},
+            {"name": "Inferno Tower", "cost": 5},
+            {"name": "Bomb Tower", "cost": 4},
+            {"name": "Barbarian Hut", "cost": 7},
+            {"name": "Tesla", "cost": 4},
+            {"name": "Elixir Collector", "cost": 6},
+            {"name": "X-Bow", "cost": 6},
+            {"name": "Tombstone", "cost": 3},
+            {"name": "Furnace", "cost": 4},
+            {"name": "Arrows", "cost": 3},
+            {"name": "Fireball", "cost": 4},
+            {"name": "Zap", "cost": 2},
+            {"name": "Lightning", "cost": 6},
+            {"name": "Rage", "cost": 2},
+            {"name": "Freeze", "cost": 4},
+            {"name": "Mirror", "cost": 1},
+            {"name": "Rocket", "cost": 6},
+            {"name": "Goblin Barrel", "cost": 3},
+            {"name": "Graveyard", "cost": 5},
+            {"name": "The Log", "cost": 2},
+            {"name": "Poison", "cost": 4},
+            {"name": "Electro Wizard", "cost": 4},
+            {"name": "Electro Spirit", "cost": 1},
+            {"name": "Phoenix", "cost": 4},
+            {"name": "Monk", "cost": 5}
+        ];
+
+        // Game State
+        let currentElixir = 5;
+        let gameTimer = null;
+        let isGameRunning = false;
+        let selectedCard = null;
+        let actionHistory = [];
+
+        // DOM Elements
+        const elixirDisplay = document.getElementById('elixirDisplay');
+        const timerStatus = document.getElementById('timerStatus');
+        const cardSearch = document.getElementById('cardSearch');
+        const suggestions = document.getElementById('suggestions');
+        const selectedCardDiv = document.getElementById('selectedCard');
+        const selectedCardImage = document.getElementById('selectedCardImage');
+        const selectedCardName = document.getElementById('selectedCardName');
+        const selectedCardCost = document.getElementById('selectedCardCost');
+        const playCardBtn = document.getElementById('playCardBtn');
+        const undoBtn = document.getElementById('undoBtn');
+        const historyList = document.getElementById('historyList');
+
+        // Initialize
+        updateDisplay();
+        setupSearch();
+
+        function updateDisplay() {
+            elixirDisplay.textContent = currentElixir;
+            timerStatus.textContent = isGameRunning ? 'Timer läuft' : 'Timer gestoppt';
+            undoBtn.disabled = actionHistory.length === 0;
+            
+            if (selectedCard) {
+                playCardBtn.disabled = currentElixir < selectedCard.cost;
+            }
+        }
+
+        function startGame() {
+            if (!isGameRunning) {
+                isGameRunning = true;
+                gameTimer = setInterval(() => {
+                    if (currentElixir < 10) {
+                        currentElixir++;
+                        updateDisplay();
+                    }
+                }, 2800); // 2.8 seconds
+                updateDisplay();
+            }
+        }
+
+        function pauseGame() {
+            if (isGameRunning) {
+                isGameRunning = false;
+                clearInterval(gameTimer);
+                updateDisplay();
+            }
+        }
+
+        function setupSearch() {
+            cardSearch.addEventListener('input', handleSearch);
+            cardSearch.addEventListener('blur', () => {
+                setTimeout(() => {
+                    suggestions.style.display = 'none';
+                }, 200);
+            });
+        }
+
+        function handleSearch() {
+            const query = cardSearch.value.toLowerCase().trim();
+            
+            if (query.length === 0) {
+                suggestions.style.display = 'none';
+                return;
+            }
+
+            const filteredCards = cardsData.filter(card => 
+                card.name.toLowerCase().includes(query)
+            ).slice(0, 8);
+
+            if (filteredCards.length === 0) {
+                suggestions.style.display = 'none';
+                return;
+            }
+
+            suggestions.innerHTML = '';
+            filteredCards.forEach(card => {
+                const div = document.createElement('div');
+                div.className = 'suggestion-item';
+                div.innerHTML = `
+                    <img src="img/Card_${card.name.replace(/\s+/g, '_')}.png" 
+                         alt="${card.name}" 
+                         onerror="this.style.display='none'">
+                    <div>
+                        <strong>${card.name}</strong><br>
+                        <small>${card.cost} Elixir</small>
+                    </div>
+                `;
+                div.addEventListener('click', () => selectCard(card));
+                suggestions.appendChild(div);
+            });
+
+            suggestions.style.display = 'block';
+        }
+
+        function selectCard(card) {
+            selectedCard = card;
+            cardSearch.value = card.name;
+            suggestions.style.display = 'none';
+            
+            selectedCardName.textContent = card.name;
+            selectedCardCost.textContent = `${card.cost} Elixir`;
+            
+            const imgElement = document.createElement('img');
+            imgElement.src = `img/Card_${card.name.replace(/\s+/g, '_')}.png`;
+            imgElement.alt = card.name;
+            imgElement.onerror = function() {
+                selectedCardImage.innerHTML = 'Kein Bild';
+            };
+            imgElement.onload = function() {
+                selectedCardImage.innerHTML = '';
+                selectedCardImage.appendChild(imgElement);
+            };
+            
+            selectedCardDiv.style.display = 'flex';
+            playCardBtn.disabled = currentElixir < card.cost;
+        }
+
+        function playSelectedCard() {
+            if (!selectedCard || currentElixir < selectedCard.cost) {
+                return;
+            }
+
+            // Save action for undo
+            actionHistory.push({
+                card: selectedCard,
+                elixirBefore: currentElixir,
+                timestamp: new Date().toLocaleTimeString()
+            });
+
+            // Subtract elixir
+            currentElixir -= selectedCard.cost;
+            
+            // Update history display
+            updateHistoryDisplay();
+            updateDisplay();
+        }
+
+        function undoLastAction() {
+            if (actionHistory.length === 0) return;
+
+            const lastAction = actionHistory.pop();
+            currentElixir = lastAction.elixirBefore;
+            
+            updateHistoryDisplay();
+            updateDisplay();
+        }
+
+        function updateHistoryDisplay() {
+            if (actionHistory.length === 0) {
+                historyList.innerHTML = '<div style="color: #6b7280; font-style: italic;">Noch keine Karten gespielt</div>';
+                return;
+            }
+
+            historyList.innerHTML = '';
+            [...actionHistory].reverse().forEach((action, index) => {
+                const div = document.createElement('div');
+                div.className = 'history-item';
+                div.innerHTML = `
+                    <span>${action.card.name} (-${action.card.cost})</span>
+                    <span>${action.timestamp}</span>
+                `;
+                historyList.appendChild(div);
+            });
+        }
+
+        // Handle Enter key in search
+        cardSearch.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const firstSuggestion = suggestions.querySelector('.suggestion-item');
+                if (firstSuggestion) {
+                    firstSuggestion.click();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
