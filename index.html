@@ -96,9 +96,13 @@
             background-color: #dc2626;
         }
 
-        .btn-undo:disabled {
-            background-color: #6b7280;
-            cursor: not-allowed;
+        .btn-stop {
+            background-color: #dc2626;
+            color: white;
+        }
+
+        .btn-stop:hover {
+            background-color: #b91c1c;
         }
 
         .card-section {
@@ -304,17 +308,18 @@
         <div class="controls">
             <button class="btn-start" id="startBtn" onclick="startGame()">Start Game</button>
             <button class="btn-pause" id="pauseBtn" onclick="pauseGame()">Pause</button>
+            <button class="btn-stop" id="stopBtn" onclick="stopGame()">Stop Game</button>
             <button class="btn-undo" id="undoBtn" onclick="undoLastAction()" disabled>Undo</button>
         </div>
 
         <div class="card-section">
-            <h2>Karte spielen</h2>
+            <h2>Karte suchen & hinzufügen</h2>
             <div class="card-search">
                 <div class="search-container">
                     <input type="text" id="cardSearch" placeholder="Karte suchen..." autocomplete="off">
                     <div class="suggestions" id="suggestions" style="display: none;"></div>
                 </div>
-                <button class="btn-play" id="playCardBtn" onclick="playSelectedCard()" disabled>Karte gespielt</button>
+                <button class="btn-play" id="addCardBtn" onclick="addCardToDeck()" disabled>Zu Deck hinzufügen</button>
             </div>
             
             <div class="selected-card" id="selectedCard" style="display: none;">
@@ -322,6 +327,16 @@
                 <div class="card-info">
                     <div class="card-name" id="selectedCardName"></div>
                     <div class="card-cost" id="selectedCardCost"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="deck-section">
+            <h2>Gegner Deck (Shortcuts)</h2>
+            <div class="deck-counter" id="deckCounter">0/8 Karten</div>
+            <div class="deck-cards" id="deckCards">
+                <div style="color: #6b7280; font-style: italic; grid-column: 1/-1; text-align: center; padding: 20px;">
+                    Füge Karten zum Deck hinzu für schnelle Shortcuts
                 </div>
             </div>
         </div>
@@ -447,6 +462,7 @@
         let isGameRunning = false;
         let selectedCard = null;
         let actionHistory = [];
+        let playerDeck = [];
 
         // DOM Elements
         const elixirDisplay = document.getElementById('elixirDisplay');
@@ -457,12 +473,15 @@
         const selectedCardImage = document.getElementById('selectedCardImage');
         const selectedCardName = document.getElementById('selectedCardName');
         const selectedCardCost = document.getElementById('selectedCardCost');
-        const playCardBtn = document.getElementById('playCardBtn');
+        const addCardBtn = document.getElementById('addCardBtn');
         const undoBtn = document.getElementById('undoBtn');
         const historyList = document.getElementById('historyList');
+        const deckCards = document.getElementById('deckCards');
+        const deckCounter = document.getElementById('deckCounter');
 
         // Initialize
         updateDisplay();
+        updateDeckDisplay();
         setupSearch();
 
         function updateDisplay() {
@@ -471,8 +490,13 @@
             undoBtn.disabled = actionHistory.length === 0;
             
             if (selectedCard) {
-                playCardBtn.disabled = currentElixir < selectedCard.cost;
+                addCardBtn.disabled = playerDeck.length >= 8 || playerDeck.some(card => card.name === selectedCard.name);
+            } else {
+                addCardBtn.disabled = true;
             }
+            
+            // Update deck cards elixir status
+            updateDeckDisplay();
         }
 
         function startGame() {
@@ -494,6 +518,17 @@
                 clearInterval(gameTimer);
                 updateDisplay();
             }
+        }
+
+        function stopGame() {
+            isGameRunning = false;
+            if (gameTimer) {
+                clearInterval(gameTimer);
+            }
+            currentElixir = 5;
+            actionHistory = [];
+            updateDisplay();
+            updateHistoryDisplay();
         }
 
         function setupSearch() {
@@ -562,25 +597,78 @@
             };
             
             selectedCardDiv.style.display = 'flex';
-            playCardBtn.disabled = currentElixir < card.cost;
+            addCardBtn.disabled = playerDeck.length >= 8 || playerDeck.some(card => card.name === selectedCard.name);
         }
 
-        function playSelectedCard() {
-            if (!selectedCard || currentElixir < selectedCard.cost) {
+        function addCardToDeck() {
+            if (!selectedCard || playerDeck.length >= 8 || playerDeck.some(card => card.name === selectedCard.name)) {
+                return;
+            }
+
+            playerDeck.push({...selectedCard});
+            updateDeckDisplay();
+            updateDisplay();
+            
+            // Clear search
+            cardSearch.value = '';
+            selectedCard = null;
+            selectedCardDiv.style.display = 'none';
+        }
+
+        function updateDeckDisplay() {
+            deckCounter.textContent = `${playerDeck.length}/8 Karten`;
+            
+            if (playerDeck.length === 0) {
+                deckCards.innerHTML = '<div style="color: #6b7280; font-style: italic; grid-column: 1/-1; text-align: center; padding: 20px;">Füge Karten zum Deck hinzu für schnelle Shortcuts</div>';
+                return;
+            }
+
+            deckCards.innerHTML = '';
+            playerDeck.forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = `deck-card ${currentElixir < card.cost ? 'insufficient-elixir' : ''}`;
+                
+                if (currentElixir >= card.cost) {
+                    cardDiv.onclick = () => playCard(card);
+                }
+                
+                cardDiv.innerHTML = `
+                    <button class="remove-card" onclick="removeFromDeck(${index}); event.stopPropagation();">×</button>
+                    <div class="card-image-small">
+                        <img src="img/Card_${card.name.replace(/\s+/g, '_')}.png" 
+                             alt="${card.name}" 
+                             onerror="this.parentElement.innerHTML='${card.name.charAt(0)}'">
+                    </div>
+                    <div class="deck-card-name">${card.name}</div>
+                    <div class="deck-card-cost">${card.cost} Elixir</div>
+                `;
+                
+                deckCards.appendChild(cardDiv);
+            });
+        }
+
+        function removeFromDeck(index) {
+            playerDeck.splice(index, 1);
+            updateDeckDisplay();
+            updateDisplay();
+        }
+
+        function playCard(card) {
+            if (currentElixir < card.cost) {
                 return;
             }
 
             // Save action for undo
             actionHistory.push({
-                card: selectedCard,
+                card: card,
                 elixirBefore: currentElixir,
                 timestamp: new Date().toLocaleTimeString()
             });
 
             // Subtract elixir
-            currentElixir -= selectedCard.cost;
+            currentElixir -= card.cost;
             
-            // Update history display
+            // Update displays
             updateHistoryDisplay();
             updateDisplay();
         }
