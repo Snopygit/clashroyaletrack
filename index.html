@@ -378,6 +378,48 @@
             </div>
         </div>
 
+        <div class="hand-section">
+            <h2>🔄 Gegner Deck Cycle</h2>
+            <div class="cycle-info">Nächste 4 Karten auf der Hand</div>
+            
+            <div class="hand-cards" id="handCards">
+                <div class="hand-card next-card">
+                    <div class="hand-position">1</div>
+                    <div class="hand-card-image">?</div>
+                    <div class="hand-card-name">Unknown</div>
+                    <div class="hand-card-cost">? Elixir</div>
+                </div>
+                <div class="hand-card">
+                    <div class="hand-position">2</div>
+                    <div class="hand-card-image">?</div>
+                    <div class="hand-card-name">Unknown</div>
+                    <div class="hand-card-cost">? Elixir</div>
+                </div>
+                <div class="hand-card">
+                    <div class="hand-position">3</div>
+                    <div class="hand-card-image">?</div>
+                    <div class="hand-card-name">Unknown</div>
+                    <div class="hand-card-cost">? Elixir</div>
+                </div>
+                <div class="hand-card">
+                    <div class="hand-position">4</div>
+                    <div class="hand-card-image">?</div>
+                    <div class="hand-card-name">Unknown</div>
+                    <div class="hand-card-cost">? Elixir</div>
+                </div>
+            </div>
+
+            <div class="cycle-display">
+                <h3>🎯 Vollständiger 8-Karten Cycle</h3>
+                <div class="cycle-cards" id="cycleCards"></div>
+            </div>
+            
+            <div class="hand-controls">
+                <button class="btn-cycle" onclick="playFromHand()">Nächste Karte gespielt</button>
+                <button class="btn-cycle" onclick="resetCycle()">Cycle zurücksetzen</button>
+            </div>
+        </div>
+
         <div class="deck-section">
             <h2>Gegner Deck (Shortcuts)</h2>
             <div class="deck-counter" id="deckCounter">0/8 Karten</div>
@@ -516,6 +558,19 @@
         let gamePhase = 'regular'; // 'regular', 'overtime'
         let elixirMultiplier = 1;
         let gameTimeTimer = null;
+        
+        // Hand Tracking State
+        let deckCycle = [
+            { name: 'Unknown', cost: '?', isKnown: false },
+            { name: 'Unknown', cost: '?', isKnown: false },
+            { name: 'Unknown', cost: '?', isKnown: false },
+            { name: 'Unknown', cost: '?', isKnown: false },
+            { name: 'Unknown', cost: '?', isKnown: false },
+            { name: 'Unknown', cost: '?', isKnown: false },
+            { name: 'Unknown', cost: '?', isKnown: false },
+            { name: 'Unknown', cost: '?', isKnown: false }
+        ];
+        let currentHandPosition = 0; // Which position is "next" (0-7)
 
         // DOM Elements
         const elixirDisplay = document.getElementById('elixirDisplay');
@@ -534,11 +589,15 @@
         const gamePhaseElement = document.getElementById('gamePhase');
         const gameTimeElement = document.getElementById('gameTime');
         const elixirMultiplierElement = document.getElementById('elixirMultiplier');
+        const handCards = document.getElementById('handCards');
+        const cycleCards = document.getElementById('cycleCards');
 
         // Initialize
         updateDisplay();
         updateDeckDisplay();
         updateGameTimer();
+        updateHandDisplay();
+        updateCycleDisplay();
         setupSearch();
 
         function updateDisplay() {
@@ -603,21 +662,40 @@
             if (!isGameRunning) {
                 isGameRunning = true;
                 
-                // Start elixir timer
-                gameTimer = setInterval(() => {
-                    const elixirGain = elixirMultiplier;
-                    if (currentElixir + elixirGain <= 10) {
-                        currentElixir += elixirGain;
-                    } else {
-                        currentElixir = 10;
-                    }
-                    updateDisplay();
-                }, 2800); // 2.8 seconds
+                // Start elixir timer with dynamic interval
+                function startElixirTimer() {
+                    if (gameTimer) clearInterval(gameTimer);
+                    
+                    const baseInterval = 2800; // 2.8 seconds
+                    const currentInterval = baseInterval / elixirMultiplier;
+                    
+                    gameTimer = setInterval(() => {
+                        if (currentElixir < 10) {
+                            currentElixir += 1; // Always +1, but faster frequency
+                            updateDisplay();
+                        }
+                        
+                        // Restart timer if multiplier changed
+                        const newInterval = baseInterval / elixirMultiplier;
+                        if (newInterval !== currentInterval) {
+                            startElixirTimer();
+                        }
+                    }, currentInterval);
+                }
+                
+                startElixirTimer();
                 
                 // Start game timer
                 gameTimeTimer = setInterval(() => {
                     gameTimeSeconds--;
+                    const oldMultiplier = elixirMultiplier;
                     calculateElixirMultiplier();
+                    
+                    // Restart elixir timer if multiplier changed
+                    if (oldMultiplier !== elixirMultiplier) {
+                        startElixirTimer();
+                    }
+                    
                     updateGameTimer();
                     
                     // Check for phase transitions
@@ -626,7 +704,11 @@
                             // Switch to overtime
                             gamePhase = 'overtime';
                             gameTimeSeconds = 120; // 2 minutes overtime
+                            const oldMultiplier = elixirMultiplier;
                             calculateElixirMultiplier();
+                            if (oldMultiplier !== elixirMultiplier) {
+                                startElixirTimer();
+                            }
                         } else {
                             // Game ended
                             pauseGame();
@@ -643,6 +725,7 @@
             if (isGameRunning) {
                 isGameRunning = false;
                 clearInterval(gameTimer);
+                clearInterval(gameTimeTimer);
                 updateDisplay();
             }
         }
@@ -652,10 +735,35 @@
             if (gameTimer) {
                 clearInterval(gameTimer);
             }
+            if (gameTimeTimer) {
+                clearInterval(gameTimeTimer);
+            }
+            
+            // Reset all game state
             currentElixir = 5;
             actionHistory = [];
+            gameTimeSeconds = 175; // Reset to 2:55
+            gamePhase = 'regular';
+            elixirMultiplier = 1;
+            
+            // Reset cycle
+            deckCycle = [
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false }
+            ];
+            currentHandPosition = 0;
+            
             updateDisplay();
             updateHistoryDisplay();
+            updateGameTimer();
+            updateHandDisplay();
+            updateCycleDisplay();
         }
 
         function setupSearch() {
@@ -789,15 +897,111 @@
             actionHistory.push({
                 card: card,
                 elixirBefore: currentElixir,
-                timestamp: new Date().toLocaleTimeString()
+                timestamp: new Date().toLocaleTimeString(),
+                cycleBefore: [...deckCycle], // Save cycle state for undo
+                handPositionBefore: currentHandPosition
             });
 
             // Subtract elixir
             currentElixir -= card.cost;
             
+            // Add played card to cycle
+            addCardToCycle(card);
+            
             // Update displays
             updateHistoryDisplay();
             updateDisplay();
+            updateHandDisplay();
+            updateCycleDisplay();
+        }
+
+        function addCardToCycle(playedCard) {
+            // Find the "end" of the cycle (position 7 from current hand position)
+            const endPosition = (currentHandPosition + 7) % 8;
+            
+            // Place the played card at the end of the cycle
+            deckCycle[endPosition] = { ...playedCard, isKnown: true };
+            
+            // Move hand position forward (next card comes up)
+            currentHandPosition = (currentHandPosition + 1) % 8;
+        }
+
+        function updateHandDisplay() {
+            handCards.innerHTML = '';
+            
+            // Show next 4 cards from current position
+            for (let i = 0; i < 4; i++) {
+                const cyclePosition = (currentHandPosition + i) % 8;
+                const card = deckCycle[cyclePosition];
+                
+                const cardDiv = document.createElement('div');
+                cardDiv.className = `hand-card ${i === 0 ? 'next-card' : ''} ${!card.isKnown ? 'unknown' : ''}`;
+                
+                let cardImageContent = '?';
+                if (card.isKnown) {
+                    cardImageContent = `<img src="img/Card_${card.name.replace(/\s+/g, '_')}.png" 
+                                         alt="${card.name}" 
+                                         onerror="this.parentElement.innerHTML='${card.name.charAt(0)}'">`;
+                }
+                
+                cardDiv.innerHTML = `
+                    <div class="hand-position">${i + 1}</div>
+                    <div class="hand-card-image">${cardImageContent}</div>
+                    <div class="hand-card-name">${card.name}</div>
+                    <div class="hand-card-cost">${card.cost}${typeof card.cost === 'number' ? ' Elixir' : ''}</div>
+                `;
+                
+                handCards.appendChild(cardDiv);
+            }
+        }
+
+        function updateCycleDisplay() {
+            cycleCards.innerHTML = '';
+            
+            for (let i = 0; i < 8; i++) {
+                const cyclePosition = (currentHandPosition + i) % 8;
+                const card = deckCycle[cyclePosition];
+                
+                const cardDiv = document.createElement('div');
+                cardDiv.className = `cycle-card ${i < 4 ? 'next-up' : ''} ${!card.isKnown ? 'unknown' : ''}`;
+                
+                const positionText = i < 4 ? `Hand ${i + 1}` : `Cycle ${i - 3}`;
+                
+                cardDiv.innerHTML = `
+                    <div class="cycle-position">${positionText}</div>
+                    <div class="cycle-card-name">${card.name}</div>
+                    <div class="cycle-card-cost">${card.cost}${typeof card.cost === 'number' ? '' : ''}</div>
+                `;
+                
+                cycleCards.appendChild(cardDiv);
+            }
+        }
+
+        function playFromHand() {
+            const nextCard = deckCycle[currentHandPosition];
+            if (nextCard.isKnown && currentElixir >= nextCard.cost) {
+                playCard(nextCard);
+            } else if (!nextCard.isKnown) {
+                alert('Nächste Karte ist unbekannt. Spiele eine bekannte Karte aus dem Deck oder der Suche.');
+            } else {
+                alert('Nicht genug Elixier für die nächste Karte!');
+            }
+        }
+
+        function resetCycle() {
+            deckCycle = [
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false },
+                { name: 'Unknown', cost: '?', isKnown: false }
+            ];
+            currentHandPosition = 0;
+            updateHandDisplay();
+            updateCycleDisplay();
         }
 
         function undoLastAction() {
@@ -806,8 +1010,16 @@
             const lastAction = actionHistory.pop();
             currentElixir = lastAction.elixirBefore;
             
+            // Restore cycle state if available
+            if (lastAction.cycleBefore) {
+                deckCycle = [...lastAction.cycleBefore];
+                currentHandPosition = lastAction.handPositionBefore;
+            }
+            
             updateHistoryDisplay();
             updateDisplay();
+            updateHandDisplay();
+            updateCycleDisplay();
         }
 
         function updateHistoryDisplay() {
