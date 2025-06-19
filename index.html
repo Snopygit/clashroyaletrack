@@ -42,6 +42,48 @@
             background-color: #0f1419;
             border-radius: 10px;
             border: 2px solid #8b5cf6;
+            position: relative;
+        }
+
+        .game-timer {
+            position: absolute;
+            top: 10px;
+            left: 15px;
+            text-align: left;
+        }
+
+        .game-phase {
+            font-size: 12px;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 2px;
+        }
+
+        .game-time {
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .game-time.overtime {
+            color: #ef4444;
+        }
+
+        .game-time.double-elixir {
+            color: #f59e0b;
+        }
+
+        .game-time.triple-elixir {
+            color: #dc2626;
+        }
+
+        .elixir-multiplier {
+            position: absolute;
+            top: 10px;
+            right: 15px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #8b5cf6;
         }
 
         .elixir-display {
@@ -300,6 +342,11 @@
         <h1>⚡ Clash Royale Elixir Tracker</h1>
         
         <div class="elixir-section">
+            <div class="game-timer">
+                <div class="game-phase" id="gamePhase">Regular Game</div>
+                <div class="game-time" id="gameTime">2:55</div>
+            </div>
+            <div class="elixir-multiplier" id="elixirMultiplier">1x Elixir</div>
             <div>Gegner Elixir</div>
             <div class="elixir-display" id="elixirDisplay">5</div>
             <div id="timerStatus">Timer gestoppt</div>
@@ -463,6 +510,12 @@
         let selectedCard = null;
         let actionHistory = [];
         let playerDeck = [];
+        
+        // Game Timer State
+        let gameTimeSeconds = 175; // 2:55 in seconds
+        let gamePhase = 'regular'; // 'regular', 'overtime'
+        let elixirMultiplier = 1;
+        let gameTimeTimer = null;
 
         // DOM Elements
         const elixirDisplay = document.getElementById('elixirDisplay');
@@ -478,10 +531,14 @@
         const historyList = document.getElementById('historyList');
         const deckCards = document.getElementById('deckCards');
         const deckCounter = document.getElementById('deckCounter');
+        const gamePhaseElement = document.getElementById('gamePhase');
+        const gameTimeElement = document.getElementById('gameTime');
+        const elixirMultiplierElement = document.getElementById('elixirMultiplier');
 
         // Initialize
         updateDisplay();
         updateDeckDisplay();
+        updateGameTimer();
         setupSearch();
 
         function updateDisplay() {
@@ -497,17 +554,87 @@
             
             // Update deck cards elixir status
             updateDeckDisplay();
+            updateGameTimer();
+        }
+
+        function updateGameTimer() {
+            const minutes = Math.floor(gameTimeSeconds / 60);
+            const seconds = gameTimeSeconds % 60;
+            gameTimeElement.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Update game phase display
+            if (gamePhase === 'regular') {
+                gamePhaseElement.textContent = 'Regular Game';
+                gameTimeElement.className = 'game-time';
+            } else {
+                gamePhaseElement.textContent = 'Overtime';
+                gameTimeElement.className = 'game-time overtime';
+            }
+            
+            // Update elixir multiplier display and coloring
+            elixirMultiplierElement.textContent = `${elixirMultiplier}x Elixir`;
+            
+            if (elixirMultiplier === 2) {
+                gameTimeElement.className += ' double-elixir';
+            } else if (elixirMultiplier === 3) {
+                gameTimeElement.className += ' triple-elixir';
+            }
+        }
+
+        function calculateElixirMultiplier() {
+            if (gamePhase === 'regular') {
+                // Regular game: 2x elixir in last minute (60 seconds)
+                if (gameTimeSeconds <= 60) {
+                    elixirMultiplier = 2;
+                } else {
+                    elixirMultiplier = 1;
+                }
+            } else {
+                // Overtime: 2x elixir normally, 3x elixir in last minute
+                if (gameTimeSeconds <= 60) {
+                    elixirMultiplier = 3;
+                } else {
+                    elixirMultiplier = 2;
+                }
+            }
         }
 
         function startGame() {
             if (!isGameRunning) {
                 isGameRunning = true;
+                
+                // Start elixir timer
                 gameTimer = setInterval(() => {
-                    if (currentElixir < 10) {
-                        currentElixir++;
-                        updateDisplay();
+                    const elixirGain = elixirMultiplier;
+                    if (currentElixir + elixirGain <= 10) {
+                        currentElixir += elixirGain;
+                    } else {
+                        currentElixir = 10;
                     }
+                    updateDisplay();
                 }, 2800); // 2.8 seconds
+                
+                // Start game timer
+                gameTimeTimer = setInterval(() => {
+                    gameTimeSeconds--;
+                    calculateElixirMultiplier();
+                    updateGameTimer();
+                    
+                    // Check for phase transitions
+                    if (gameTimeSeconds <= 0) {
+                        if (gamePhase === 'regular') {
+                            // Switch to overtime
+                            gamePhase = 'overtime';
+                            gameTimeSeconds = 120; // 2 minutes overtime
+                            calculateElixirMultiplier();
+                        } else {
+                            // Game ended
+                            pauseGame();
+                            alert('Spiel beendet!');
+                        }
+                    }
+                }, 1000);
+                
                 updateDisplay();
             }
         }
